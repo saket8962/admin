@@ -30,6 +30,7 @@ import CreateBlog from "./pages/CreateBlog";
 import BlogAnalytics from "./pages/BlogAnalytics";
 import CreateProduct from "./pages/CreateProduct";
 import Profile from "./pages/Profile";
+import Documentation from "./pages/Documentation";
 
 function AppContent() {
   const { isAuthenticated, isLoading, logout } = useAuth();
@@ -98,6 +99,7 @@ function AppContent() {
                 <Route path="/operations/health" element={<SystemHealth />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/docs" element={<Documentation />} />
                 {/* Fallback to dashboard if route not found */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

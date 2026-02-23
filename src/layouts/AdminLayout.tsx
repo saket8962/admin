@@ -59,7 +59,10 @@ const navGroups = [
   },
   {
     title: "Admin Settings",
-    items: [{ label: "Settings", icon: Settings, path: "/settings" }],
+    items: [
+      { label: "Settings", icon: Settings, path: "/settings" },
+      { label: "Docs", icon: FileText, path: "/docs" },
+    ],
   },
 ];
 
