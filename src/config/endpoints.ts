@@ -15,7 +15,14 @@ export const API_ENDPOINTS = {
   DASHBOARD: {
     STATS: "/dashboard/stats",
   },
+  USERS: {
+    BASE: "/users",
+    STATS: "/users/stats",
+  },
   UPLOAD: "/upload",
+  BLOGS: {
+    BASE: "/blogs",
+  },
 } as const;
 
 export const BASE_URL =

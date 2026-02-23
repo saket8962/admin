@@ -27,6 +27,7 @@ export default function CreateProduct() {
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(!!urlSlug);
+  const [isUploading, setIsUploading] = useState(false);
   const [productId, setProductId] = useState<string | null>(null);
 
   const isEditMode = !!urlSlug;
@@ -126,15 +127,44 @@ export default function CreateProduct() {
     setValue("slug", generatedSlug, { shouldValidate: true });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const newImages = Array.from(files).map((file) =>
-        URL.createObjectURL(file),
-      );
-      const updatedImages = [...images, ...newImages].slice(0, 5);
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement> | { files: FileList | null },
+  ) => {
+    const files = "target" in e ? e.target.files : e.files;
+    if (!files || files.length === 0) return;
+
+    const filesArray = Array.from(files);
+
+    // Check if total images exceed 5
+    if (images.length + filesArray.length > 5) {
+      toast.error("Maximum 5 images allowed");
+      return;
+    }
+
+    setIsUploading(true);
+    const uploadToastId = toast.loading("Uploading images...");
+
+    try {
+      const uploadPromises = filesArray.map(async (file) => {
+        const formData = new FormData();
+        formData.append("image", file);
+        const response = await api.post(API_ENDPOINTS.UPLOAD, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return response.data.url;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const updatedImages = [...images, ...uploadedUrls].slice(0, 5);
+
       setImages(updatedImages);
       setValue("images", updatedImages, { shouldValidate: true });
+      toast.success("Images uploaded successfully", { id: uploadToastId });
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      toast.error("Failed to upload images", { id: uploadToastId });
+    } finally {
+      setIsUploading(false);
     }
   };
 

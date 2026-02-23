@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import {
   Plus,
   Search,
-  Filter,
   Package,
   Download,
   Loader2,
@@ -20,14 +19,23 @@ import { API_ENDPOINTS } from "../config/endpoints";
 import type { Product } from "../types/product";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import ImportModal from "../components/products/ImportModal";
+import { usePagination } from "../hooks/usePagination";
+import Pagination from "../components/ui/Pagination";
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{ _id: string; name: string }[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [totalCount, setTotalCount] = useState(0);
+
+  const { page, setPage, resetPage, limit } = usePagination();
 
   // Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -39,12 +47,26 @@ export default function Products() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get(API_ENDPOINTS.CATEGORIES.BASE);
+        setCategories(response.data.data);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get(
-        `${API_ENDPOINTS.PRODUCTS.BASE}?page=${page}&limit=10&search=${searchTerm}`,
-      );
+      let query = `${API_ENDPOINTS.PRODUCTS.BASE}?page=${page}&limit=${limit}&search=${searchTerm}&sortBy=${sortBy}&order=${sortOrder}`;
+      if (selectedCategory) {
+        query += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
+      const response = await api.get(query);
       setProducts(response.data.data);
       setTotalCount(response.data.totalCount);
     } catch (error) {
@@ -60,7 +82,7 @@ export default function Products() {
       fetchProducts();
     }, 500); // Debounce search
     return () => clearTimeout(timer);
-  }, [page, searchTerm]);
+  }, [page, searchTerm, selectedCategory, sortBy, sortOrder]);
 
   const toggleSelectAll = () => {
     if (selectedItems.length === products.length && products.length > 0) {
@@ -169,18 +191,48 @@ export default function Products() {
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                resetPage();
+              }}
               className="w-full pl-10 pr-4 py-2.5 bg-secondary/30 border border-transparent rounded-lg text-sm focus:outline-none focus:bg-white focus:ring-4 focus:ring-accent/10 focus:border-accent/30 transition-all"
             />
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-bold uppercase tracking-widest text-muted hover:bg-secondary hover:text-primary transition-all">
-              <Filter className="w-4 h-4" />
-              Category
-            </button>
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-bold uppercase tracking-widest text-muted hover:bg-secondary hover:text-primary transition-all">
-              Sort by
-            </button>
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                resetPage();
+              }}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-bold uppercase tracking-widest text-muted hover:bg-secondary hover:text-primary transition-all outline-none focus:ring-2 focus:ring-accent/10"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [sort, order] = e.target.value.split("-");
+                setSortBy(sort);
+                setSortOrder(order);
+                resetPage();
+              }}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-bold uppercase tracking-widest text-muted hover:bg-secondary hover:text-primary transition-all outline-none focus:ring-2 focus:ring-accent/10"
+            >
+              <option value="createdAt-desc">Newest First</option>
+              <option value="createdAt-asc">Oldest First</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="stock-asc">Stock: Low to High</option>
+              <option value="stock-desc">Stock: High to Low</option>
+              <option value="name-asc">Name: A-Z</option>
+              <option value="name-desc">Name: Z-A</option>
+            </select>
             <button className="p-2.5 border border-border rounded-lg text-muted hover:bg-secondary hover:text-primary transition-all">
               <Download className="w-4 h-4" />
             </button>
@@ -382,26 +434,12 @@ export default function Products() {
             </div>
           )}
 
-          {/* Pagination Footer */}
-          <div className="px-6 py-4 bg-secondary/10 border-t border-border flex items-center justify-between">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-primary disabled:opacity-50 transition-colors"
-              disabled={page === 1}
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-2 text-xs font-bold text-muted uppercase tracking-widest">
-              Page {page} of {Math.ceil(totalCount / 10) || 1}
-            </div>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= (Math.ceil(totalCount / 10) || 1)}
-              className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-accent hover:underline transition-colors disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+          {/* Pagination Footer replaced with Component */}
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(totalCount / limit) || 1}
+            onPageChange={setPage}
+          />
         </div>
       </div>
     </div>

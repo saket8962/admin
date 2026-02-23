@@ -66,10 +66,7 @@ const ProductMediaSection: React.FC<ProductMediaSectionProps> = ({
               setDragActive(false);
               const files = e.dataTransfer.files;
               if (files) {
-                const newImages = Array.from(files).map((file) =>
-                  URL.createObjectURL(file),
-                );
-                setImages((prev) => [...prev, ...newImages].slice(0, 5));
+                handleImageUpload({ files } as any);
               }
             }}
           >
