@@ -23,6 +23,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import WelcomePopup from "../components/ui/WelcomePopup";
 
 const navGroups = [
   {
@@ -59,7 +60,10 @@ const navGroups = [
   },
   {
     title: "Admin Settings",
-    items: [{ label: "Settings", icon: Settings, path: "/settings" }],
+    items: [
+      { label: "Settings", icon: Settings, path: "/settings" },
+      { label: "Docs", icon: FileText, path: "/docs" },
+    ],
   },
 ];
 
@@ -211,6 +215,7 @@ export default function AdminLayout({
           <div className="max-w-7xl mx-auto w-full">{children}</div>
         </main>
       </div>
+      <WelcomePopup />
     </div>
   );
 }

@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = (userData: any, token: string) => {
     setUser(userData);
     setToken(token);
+    sessionStorage.removeItem("hasSeenWelcomePopup");
     Cookies.set("admin_token", token, {
       expires: 30,
       secure: true,
