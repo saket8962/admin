@@ -35,7 +35,11 @@ export default function Login() {
         toast.success("Welcome back, NIVAA Admin!", {
           description: "Login successful. Redirecting to dashboard...",
         });
-        navigate("/");
+        
+        // Use a hard redirect to ensure state is clean and router doesn't race condition
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 300);
       } else {
         toast.error("Access Denied", {
           description: "You do not have administrative privileges.",
