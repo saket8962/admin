@@ -419,9 +419,15 @@ export default function Categories() {
                 placeholder="e.g. Modern Chandeliers"
                 required
                 value={newCategory.name}
-                onChange={(e) =>
-                  setNewCategory({ ...newCategory, name: e.target.value })
-                }
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const slug = name
+                    .toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, "-")
+                    .replace(/[^\w-]+/g, "");
+                  setNewCategory({ ...newCategory, name, slug });
+                }}
                 className="w-full px-4 py-3 bg-secondary/30 border border-transparent rounded-xl focus:bg-white focus:border-accent/40 outline-none transition-all text-sm font-medium"
               />
             </div>

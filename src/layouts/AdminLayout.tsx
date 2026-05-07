@@ -59,6 +59,13 @@ const navGroups = [
     ],
   },
   {
+    title: "Storefront Builder",
+    items: [
+      { label: "Hero Slider", icon: Layers, path: "/storefront/hero" },
+      { label: "Promo Campaigns", icon: Layers, path: "/storefront/promos" },
+    ],
+  },
+  {
     title: "Admin Settings",
     items: [
       { label: "Settings", icon: Settings, path: "/settings" },

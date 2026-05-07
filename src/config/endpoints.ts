@@ -23,6 +23,9 @@ export const API_ENDPOINTS = {
   BLOGS: {
     BASE: "/blogs",
   },
+  HERO: {
+    BASE: "/hero",
+  },
 } as const;
 
 export const BASE_URL =

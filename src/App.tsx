@@ -31,6 +31,10 @@ import BlogAnalytics from "./pages/BlogAnalytics";
 import CreateProduct from "./pages/CreateProduct";
 import Profile from "./pages/Profile";
 import Documentation from "./pages/Documentation";
+import HeroSlider from "./pages/HeroSlider";
+import CreateHeroSlide from "./pages/CreateHeroSlide";
+import Promos from "./pages/Promos";
+import CreatePromo from "./pages/CreatePromo";
 
 function AppContent() {
   const { isAuthenticated, isLoading, logout } = useAuth();
@@ -94,6 +98,12 @@ function AppContent() {
                   path="/content/blogs/:id/analytics"
                   element={<BlogAnalytics />}
                 />
+                
+                <Route path="/storefront/hero" element={<HeroSlider />} />
+                <Route path="/storefront/hero/create" element={<CreateHeroSlide />} />
+                <Route path="/storefront/hero/edit/:id" element={<CreateHeroSlide />} />
+                <Route path="/storefront/promos" element={<Promos />} />
+                <Route path="/storefront/promos/create" element={<CreatePromo />} />
                 <Route path="/operations/shipping" element={<Shipping />} />
                 <Route path="/operations/inquiries" element={<Inquiries />} />
                 <Route path="/operations/health" element={<SystemHealth />} />
