@@ -33,14 +33,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(userData);
     setToken(token);
     sessionStorage.removeItem("hasSeenWelcomePopup");
+    const isSecure = window.location.protocol === "https:";
     Cookies.set("admin_token", token, {
       expires: 30,
-      secure: true,
+      secure: isSecure,
       sameSite: "strict",
     });
     Cookies.set("admin_user", JSON.stringify(userData), {
       expires: 30,
-      secure: true,
+      secure: isSecure,
       sameSite: "strict",
     });
   };
