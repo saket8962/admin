@@ -2,7 +2,7 @@ import React from "react";
 import { Percent, Users, TrendingUp, ChevronRight } from "lucide-react";
 
 interface Coupon {
-  id: number;
+  id: string | number;
   code: string;
   type: "Percentage" | "Fixed Amount" | "Flash Sale";
   value: string;

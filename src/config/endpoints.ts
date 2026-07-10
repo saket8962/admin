@@ -26,6 +26,9 @@ export const API_ENDPOINTS = {
   HERO: {
     BASE: "/hero",
   },
+  COUPONS: {
+    BASE: "/coupons",
+  },
 } as const;
 
 export const BASE_URL =

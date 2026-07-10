@@ -4,7 +4,7 @@ import { Search, Filter, Tag, ChevronRight, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 interface Coupon {
-  id: number;
+  id: string | number;
   code: string;
   type: "Percentage" | "Fixed Amount" | "Flash Sale";
   value: string;
@@ -18,8 +18,8 @@ interface CouponsTableProps {
   coupons: Coupon[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  toggleStatus: (id: number) => void;
-  deleteCoupon: (id: number) => void;
+  toggleStatus: (id: string | number) => void;
+  deleteCoupon: (id: string | number) => void;
 }
 
 export default function CouponsTable({

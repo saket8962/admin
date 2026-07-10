@@ -15,69 +15,117 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "../lib/utils";
+import api from "../lib/api";
+import { toast } from "sonner";
+import CouponsSkeleton from "../components/skeletons/CouponsSkeleton";
 
-const orderData = {
-  id: "#ORD-2025-045",
-  date: "Jan 12, 2026, 02:30 PM",
-  status: "Delivered",
-  paymentStatus: "Paid",
-  paymentMethod: "UPI (PhonePe)",
-  customer: {
-    name: "Sneha Kapur",
-    email: "sneha@example.com",
-    phone: "+91 98765 43213",
-  },
+interface TimelineStep {
+  status: string;
+  date: string;
+  completed: boolean;
+}
+
+interface OrderItem {
+  _id: string;
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  total: number;
+  image?: string;
+}
+
+interface OrderDetailData {
+  _id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  couponCode?: string;
+  discountAmount?: number;
+  createdAt: string;
+  userId: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
   shippingAddress: {
-    street: "123 Elegance St, Flat 402",
-    area: "Worli, Mumbai",
-    city: "Mumbai",
-    state: "Maharashtra",
-    pincode: "400018",
-    country: "India",
-  },
-  items: [
-    {
-      id: 1,
-      name: "Lumina Gold Pendant",
-      price: 1850,
-      quantity: 1,
-      total: 1850,
-      image:
-        "file:///C:/Users/Asus/.gemini/antigravity/brain/e0bd34e5-7dfc-438f-abff-57c8d4dd4c82/pendant_lamp_gold_1769715783497.png",
-    },
-    {
-      id: 2,
-      name: "Modern Wall Sconce",
-      price: 1200,
-      quantity: 2,
-      total: 2400,
-      image:
-        "file:///C:/Users/Asus/.gemini/antigravity/brain/e0bd34e5-7dfc-438f-abff-57c8d4dd4c82/wall_sconce_modern_1769715806115.png",
-    },
-  ],
+    street: string;
+    area: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
+  items: OrderItem[];
   summary: {
-    subtotal: 4250,
-    shipping: 150,
-    tax: 0,
-    discount: 150,
-    total: 4250,
-  },
-  timeline: [
-    { status: "Order Placed", date: "Jan 12, 2026, 02:30 PM", completed: true },
-    {
-      status: "Payment Confirmed",
-      date: "Jan 12, 2026, 02:35 PM",
-      completed: true,
-    },
-    { status: "Packed", date: "Jan 12, 2026, 05:00 PM", completed: true },
-    { status: "Shipped", date: "Jan 13, 2026, 09:00 AM", completed: true },
-    { status: "Delivered", date: "Jan 14, 2026, 04:15 PM", completed: true },
-  ],
-};
+    subtotal: number;
+    shipping: number;
+    tax?: number;
+    discount: number;
+    total: number;
+  };
+  timeline: TimelineStep[];
+}
 
 export default function SpecificOrderDetail() {
-  const { orderId } = useParams();
+  const { orderId } = useParams<{ orderId: string }>();
+
+  // Fetch single order details
+  const {
+    data: order,
+    isLoading,
+    refetch,
+  } = useQuery<OrderDetailData>({
+    queryKey: ["adminOrderDetail", orderId],
+    queryFn: async () => {
+      const response = await api.get(`/admin/orders/${orderId}`);
+      return response.data.data;
+    },
+    enabled: !!orderId,
+  });
+
+  // Mutate/update order status
+  const updateStatus = async (newStatus: string) => {
+    try {
+      await api.patch(`/admin/orders/${orderId}/status`, { status: newStatus });
+      toast.success(`Order updated successfully to '${newStatus}'`);
+      refetch();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Failed to update order status";
+      toast.error(msg);
+    }
+  };
+
+  if (isLoading) {
+    return <CouponsSkeleton />;
+  }
+
+  if (!order) {
+    return (
+      <div className="p-8 text-center text-muted">
+        <p>Order not found or has been deleted.</p>
+        <Link to="/orders" className="text-accent underline mt-4 inline-block">
+          Back to Orders List
+        </Link>
+      </div>
+    );
+  }
+
+  const statusColors: Record<string, string> = {
+    Created: "bg-amber-100 text-amber-700",
+    Pending: "bg-yellow-100 text-yellow-700",
+    Confirmed: "bg-blue-100 text-blue-700",
+    Packed: "bg-indigo-100 text-indigo-700",
+    Shipped: "bg-cyan-100 text-cyan-700",
+    Delivered: "bg-emerald-100 text-emerald-700",
+    Cancelled: "bg-rose-100 text-rose-700",
+  };
+
+  const currentStatus = order.status;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
@@ -91,17 +139,58 @@ export default function SpecificOrderDetail() {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold font-serif">
-                Order {orderData.id}
+              <h1 className="text-2xl font-bold font-serif font-mono">
+                {order.orderNumber}
               </h1>
-              <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                {orderData.status}
+              <span
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  statusColors[currentStatus] || "bg-secondary text-primary"
+                )}
+              >
+                {currentStatus}
               </span>
             </div>
-            <p className="text-muted text-sm mt-1">{orderData.date}</p>
+            <p className="text-muted text-sm mt-1">
+              {new Date(order.createdAt).toLocaleString("en-IN")}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Context-aware COD flow transitions */}
+          {currentStatus === "Created" && (
+            <>
+              <button
+                onClick={() => updateStatus("Confirmed")}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-emerald-600/20"
+              >
+                Confirm Order
+              </button>
+              <button
+                onClick={() => updateStatus("Cancelled")}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-rose-600/20"
+              >
+                Cancel Order
+              </button>
+            </>
+          )}
+          {currentStatus === "Confirmed" && (
+            <button
+              onClick={() => updateStatus("Shipped")}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-blue-600/20"
+            >
+              Ship Order
+            </button>
+          )}
+          {currentStatus === "Shipped" && (
+            <button
+              onClick={() => updateStatus("Delivered")}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-emerald-600/20"
+            >
+              Mark Delivered
+            </button>
+          )}
+
           <button className="p-2 border border-border rounded-lg hover:bg-secondary transition-all text-muted hover:text-primary">
             <Printer className="w-4 h-4" />
           </button>
@@ -134,8 +223,8 @@ export default function SpecificOrderDetail() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {orderData.items.map((item) => (
-                    <tr key={item.id} className="text-sm">
+                  {order.items.map((item) => (
+                    <tr key={item._id} className="text-sm">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-secondary rounded-lg overflow-hidden flex-shrink-0 border border-border/50">
@@ -153,11 +242,9 @@ export default function SpecificOrderDetail() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-muted">₹ {item.price}</td>
-                      <td className="px-6 py-4 font-medium">
-                        x{item.quantity}
-                      </td>
+                      <td className="px-6 py-4 font-medium">x{item.quantity}</td>
                       <td className="px-6 py-4 text-right font-bold">
-                        ₹ {item.total}
+                        ₹ {(item.price * item.quantity).toLocaleString("en-IN")}
                       </td>
                     </tr>
                   ))}
@@ -169,23 +256,27 @@ export default function SpecificOrderDetail() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">Subtotal</span>
                   <span className="font-medium">
-                    ₹ {orderData.summary.subtotal}
+                    ₹ {order.summary.subtotal.toLocaleString("en-IN")}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">Shipping</span>
                   <span className="font-medium">
-                    ₹ {orderData.summary.shipping}
+                    ₹ {order.summary.shipping}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm text-green-600">
-                  <span className="font-medium">Discount</span>
-                  <span>-₹ {orderData.summary.discount}</span>
-                </div>
+                {order.discountAmount && order.discountAmount > 0 ? (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span className="font-medium">
+                      Discount {order.couponCode ? `(Coupon: ${order.couponCode})` : ""}
+                    </span>
+                    <span>-₹ {order.discountAmount.toLocaleString("en-IN")}</span>
+                  </div>
+                ) : null}
                 <div className="pt-2 border-t border-border flex justify-between">
                   <span className="font-bold">Total Amount</span>
-                  <span className="font-bold text-accent text-lg">
-                    ₹ {orderData.summary.total}
+                  <span className="font-bold text-accent text-lg font-mono">
+                    ₹ {order.summary.total.toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
@@ -199,9 +290,9 @@ export default function SpecificOrderDetail() {
               Order Timeline
             </h3>
             <div className="relative space-y-8">
-              {orderData.timeline.map((step, idx) => (
+              {order.timeline.map((step, idx) => (
                 <div key={idx} className="flex gap-4 relative">
-                  {idx !== orderData.timeline.length - 1 && (
+                  {idx !== order.timeline.length - 1 && (
                     <div className="absolute left-2.5 top-6 w-0.5 h-10 bg-secondary" />
                   )}
                   <div
@@ -209,7 +300,7 @@ export default function SpecificOrderDetail() {
                       "w-5 h-5 rounded-full flex items-center justify-center relative z-10",
                       step.completed
                         ? "bg-accent text-white"
-                        : "bg-secondary text-muted",
+                        : "bg-secondary text-muted"
                     )}
                   >
                     <CheckCircle2 className="w-3 h-3" />
@@ -218,12 +309,14 @@ export default function SpecificOrderDetail() {
                     <p
                       className={cn(
                         "text-sm font-bold",
-                        step.completed ? "text-primary" : "text-muted",
+                        step.completed ? "text-primary" : "text-muted"
                       )}
                     >
                       {step.status}
                     </p>
-                    <p className="text-xs text-muted mt-0.5">{step.date}</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      {new Date(step.date).toLocaleString("en-IN")}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -240,13 +333,13 @@ export default function SpecificOrderDetail() {
               Customer Details
             </h3>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center font-bold text-primary">
-                {orderData.customer.name.charAt(0)}
+              <div className="w-12 h-12 bg-secondary text-primary rounded-full flex items-center justify-center font-bold font-sans">
+                {order.userId?.name?.charAt(0) || "U"}
               </div>
               <div>
-                <p className="font-bold">{orderData.customer.name}</p>
+                <p className="font-bold">{order.userId?.name || "Unknown Customer"}</p>
                 <Link
-                  to="/users/1"
+                  to={`/customers/${order.userId?._id}`}
                   className="text-xs text-accent hover:underline font-bold uppercase tracking-widest mt-0.5"
                 >
                   View Profile
@@ -256,11 +349,11 @@ export default function SpecificOrderDetail() {
             <div className="space-y-4 pt-4 border-t border-border">
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="w-4 h-4 text-muted" />
-                <span>{orderData.customer.email}</span>
+                <span>{order.userId?.email || "No email"}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="w-4 h-4 text-muted" />
-                <span>{orderData.customer.phone}</span>
+                <span>{order.userId?.phone || "No phone contact"}</span>
               </div>
             </div>
           </div>
@@ -272,16 +365,15 @@ export default function SpecificOrderDetail() {
               Shipping Address
             </h3>
             <div className="text-sm space-y-1">
-              <p className="font-bold">{orderData.customer.name}</p>
+              <p className="font-bold">{order.userId?.name || "Unknown Customer"}</p>
               <p className="text-muted leading-relaxed">
-                {orderData.shippingAddress.street},<br />
-                {orderData.shippingAddress.area},<br />
-                {orderData.shippingAddress.city},{" "}
-                {orderData.shippingAddress.state}
+                {order.shippingAddress?.street},<br />
+                {order.shippingAddress?.area},<br />
+                {order.shippingAddress?.city}, {order.shippingAddress?.state}
                 <br />
-                {orderData.shippingAddress.pincode}
+                {order.shippingAddress?.pincode}
                 <br />
-                {orderData.shippingAddress.country}
+                {order.shippingAddress?.country || "India"}
               </p>
             </div>
           </div>
@@ -295,18 +387,25 @@ export default function SpecificOrderDetail() {
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted">Method</span>
-                <span className="font-bold">{orderData.paymentMethod}</span>
+                <span className="font-bold uppercase">{order.paymentMethod}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted">Status</span>
-                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold uppercase">
-                  {orderData.paymentStatus}
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                    order.paymentStatus === "Paid"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  )}
+                >
+                  {order.paymentStatus}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Logistics & Fulfillment - NEW */}
+          {/* Logistics & Fulfillment */}
           <div className="bg-primary text-white p-6 rounded-2xl border border-primary shadow-xl shadow-primary/20 space-y-6 relative overflow-hidden group">
             <div className="relative z-10 flex items-center justify-between">
               <h3 className="font-bold flex items-center gap-2">

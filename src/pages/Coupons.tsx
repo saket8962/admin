@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, AlertCircle, CheckCircle2 } from "lucide-react";
+import api from "../lib/api";
+import { API_ENDPOINTS } from "../config/endpoints";
+import { toast } from "sonner";
 
 // Reusable components
 import Drawer from "../components/ui/Drawer";
@@ -9,7 +12,7 @@ import CouponStats from "../components/coupons/CouponStats";
 import CouponsTable from "../components/coupons/CouponsTable";
 
 interface Coupon {
-  id: number;
+  id: string;
   code: string;
   type: "Percentage" | "Fixed Amount" | "Flash Sale";
   value: string;
@@ -19,50 +22,42 @@ interface Coupon {
   expiry: string;
 }
 
-const initialCoupons: Coupon[] = [
-  {
-    id: 1,
-    code: "WELCOME100",
-    type: "Fixed Amount",
-    value: "₹ 100",
-    status: "Active",
-    usage: 145,
-    limit: 1000,
-    expiry: "2024-12-31",
-  },
-  {
-    id: 2,
-    code: "DIWALI50",
-    type: "Percentage",
-    value: "50%",
-    status: "Active",
-    usage: 890,
-    limit: 1000,
-    expiry: "2024-11-15",
-  },
-  {
-    id: 3,
-    code: "FLASHSALE30",
-    type: "Flash Sale",
-    value: "30%",
-    status: "Paused",
-    usage: 300,
-    limit: 300,
-    expiry: "2024-10-01",
-  },
-  {
-    id: 4,
-    code: "FREESHIP",
-    type: "Percentage",
-    value: "100%",
-    status: "Active",
-    usage: 89,
-    limit: "Unlimited",
-    expiry: "2024-12-10",
-  },
-];
+interface NewCouponState {
+  code: string;
+  type: "Percentage" | "Fixed Amount" | "Flash Sale";
+  value: string;
+  limit: number;
+  expiry: string;
+  minOrderAmount: string;
+  maxDiscount: string;
+}
 
-let mockCoupons = [...initialCoupons];
+const fetchCoupons = async (): Promise<Coupon[]> => {
+  const response = await api.get(API_ENDPOINTS.COUPONS.BASE);
+  const rawCoupons = response.data.data || [];
+  return rawCoupons.map((coupon: any) => {
+    let uiType: "Percentage" | "Fixed Amount" | "Flash Sale" = "Percentage";
+    if (coupon.type === "fixed") {
+      uiType = "Fixed Amount";
+    } else if (coupon.type === "percentage") {
+      uiType = "Percentage";
+    }
+
+    return {
+      id: coupon._id,
+      code: coupon.code,
+      type: uiType,
+      value:
+        coupon.type === "percentage"
+          ? `${coupon.value}%`
+          : `₹ ${coupon.value}`,
+      status: coupon.isActive ? "Active" : "Paused",
+      usage: coupon.usedCount || 0,
+      limit: coupon.usageLimit || "Unlimited",
+      expiry: coupon.endDate ? coupon.endDate.split("T")[0] : "",
+    };
+  });
+};
 
 export default function Coupons() {
   const {
@@ -71,65 +66,83 @@ export default function Coupons() {
     refetch: refetchCoupons,
   } = useQuery<Coupon[]>({
     queryKey: ["couponsList"],
-    queryFn: async () => {
-      // Simulate API call latency
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return mockCoupons;
-    },
+    queryFn: fetchCoupons,
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
+  const [newCoupon, setNewCoupon] = useState<NewCouponState>({
     code: "",
     type: "Percentage",
     value: "",
     limit: 100,
     expiry: "",
+    minOrderAmount: "",
+    maxDiscount: "",
   });
 
-  const handleCreateCoupon = (e: React.FormEvent) => {
+  const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCoupon.code || !newCoupon.value) return;
 
-    const couponToAdd: Coupon = {
-      id: Date.now(),
-      code: newCoupon.code.toUpperCase(),
-      type: newCoupon.type as any,
-      value:
-        newCoupon.type === "Percentage" || newCoupon.type === "Flash Sale"
-          ? `${newCoupon.value}%`
-          : `₹ ${newCoupon.value}`,
-      status: "Active",
-      usage: 0,
-      limit: newCoupon.limit as number,
-      expiry: newCoupon.expiry || "2025-01-01",
-    };
+    try {
+      const typeMap: Record<string, "percentage" | "fixed"> = {
+        "Percentage": "percentage",
+        "Fixed Amount": "fixed",
+        "Flash Sale": "percentage",
+      };
 
-    mockCoupons = [couponToAdd, ...mockCoupons];
-    refetchCoupons();
-    setIsSidebarOpen(false);
-    setNewCoupon({
-      code: "",
-      type: "Percentage",
-      value: "",
-      limit: 100,
-      expiry: "",
-    });
+      const payload: any = {
+        code: newCoupon.code.toUpperCase(),
+        type: typeMap[newCoupon.type] || "percentage",
+        value: Number(newCoupon.value),
+        usageLimit: newCoupon.limit ? Number(newCoupon.limit) : 100,
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: newCoupon.expiry || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        minOrderAmount: newCoupon.minOrderAmount ? Number(newCoupon.minOrderAmount) : 0,
+      };
+
+      if (newCoupon.maxDiscount && newCoupon.type !== "Fixed Amount") {
+        payload.maxDiscount = Number(newCoupon.maxDiscount);
+      }
+
+      await api.post(API_ENDPOINTS.COUPONS.BASE, payload);
+      toast.success("Coupon created successfully");
+      refetchCoupons();
+      setIsSidebarOpen(false);
+      setNewCoupon({
+        code: "",
+        type: "Percentage",
+        value: "",
+        limit: 100,
+        expiry: "",
+        minOrderAmount: "",
+        maxDiscount: "",
+      });
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Failed to create coupon";
+      toast.error(msg);
+    }
   };
 
-  const toggleStatus = (id: number) => {
-    mockCoupons = mockCoupons.map((c) =>
-      c.id === id
-        ? { ...c, status: c.status === "Active" ? "Paused" : "Active" }
-        : c
-    );
-    refetchCoupons();
+  const toggleStatus = async (id: string | number) => {
+    try {
+      await api.patch(`${API_ENDPOINTS.COUPONS.BASE}/${id}/status`);
+      toast.success("Coupon status updated");
+      refetchCoupons();
+    } catch (error) {
+      toast.error("Failed to update coupon status");
+    }
   };
 
-  const deleteCoupon = (id: number) => {
-    mockCoupons = mockCoupons.filter((c) => c.id !== id);
-    refetchCoupons();
+  const deleteCoupon = async (id: string | number) => {
+    try {
+      await api.delete(`${API_ENDPOINTS.COUPONS.BASE}/${id}`);
+      toast.success("Coupon removed successfully");
+      refetchCoupons();
+    } catch (error) {
+      toast.error("Failed to remove coupon");
+    }
   };
 
   if (isLoading) {
@@ -214,7 +227,10 @@ export default function Coupons() {
               <select
                 value={newCoupon.type}
                 onChange={(e) =>
-                  setNewCoupon({ ...newCoupon, type: e.target.value as any })
+                  setNewCoupon({
+                    ...newCoupon,
+                    type: e.target.value as any,
+                  })
                 }
                 className="w-full px-4 py-3 bg-secondary/30 border border-transparent rounded-xl focus:bg-white focus:border-accent/40 outline-none transition-all text-sm font-medium"
               >
@@ -243,6 +259,45 @@ export default function Coupons() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                Min. Purchase Required (₹)
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={newCoupon.minOrderAmount}
+                onChange={(e) =>
+                  setNewCoupon({
+                    ...newCoupon,
+                    minOrderAmount: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-3 bg-secondary/30 border border-transparent rounded-xl focus:bg-white focus:border-accent/40 outline-none transition-all text-sm font-medium"
+              />
+            </div>
+            {newCoupon.type !== "Fixed Amount" && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                  Max. Discount Cap (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Unlimited"
+                  value={newCoupon.maxDiscount}
+                  onChange={(e) =>
+                    setNewCoupon({
+                      ...newCoupon,
+                      maxDiscount: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-secondary/30 border border-transparent rounded-xl focus:bg-white focus:border-accent/40 outline-none transition-all text-sm font-medium"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
                 Usage Limit
               </label>
               <input
@@ -251,7 +306,7 @@ export default function Coupons() {
                 onChange={(e) =>
                   setNewCoupon({
                     ...newCoupon,
-                    limit: parseInt(e.target.value),
+                    limit: parseInt(e.target.value) || 0,
                   })
                 }
                 className="w-full px-4 py-3 bg-secondary/30 border border-transparent rounded-xl focus:bg-white focus:border-accent/40 outline-none transition-all text-sm font-medium"

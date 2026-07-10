@@ -35,11 +35,11 @@ export default function Login() {
         toast.success("Welcome back, NIVAA Admin!", {
           description: "Login successful. Redirecting to dashboard...",
         });
-        
+
         // Use a hard redirect to ensure state is clean and router doesn't race condition
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 300);
+        // setTimeout(() => {
+        //   window.location.href = "/";
+        // }, 300);
       } else {
         toast.error("Access Denied", {
           description: "You do not have administrative privileges.",
@@ -108,9 +108,8 @@ export default function Login() {
                     {...register("email")}
                     type="email"
                     placeholder="admin@nivaa.com"
-                    className={`w-full bg-secondary/30 border ${
-                      errors.email ? "border-red-500/50" : "border-transparent"
-                    } rounded-xl pl-12 pr-4 py-4 outline-none focus:bg-white focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-medium`}
+                    className={`w-full bg-secondary/30 border ${errors.email ? "border-red-500/50" : "border-transparent"
+                      } rounded-xl pl-12 pr-4 py-4 outline-none focus:bg-white focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-medium`}
                   />
                 </div>
                 {errors.email && (
@@ -132,11 +131,10 @@ export default function Login() {
                     {...register("password")}
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className={`w-full bg-secondary/30 border ${
-                      errors.password
+                    className={`w-full bg-secondary/30 border ${errors.password
                         ? "border-red-500/50"
                         : "border-transparent"
-                    } rounded-xl pl-12 pr-12 py-4 outline-none focus:bg-white focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-medium`}
+                      } rounded-xl pl-12 pr-12 py-4 outline-none focus:bg-white focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-medium`}
                   />
                   <button
                     type="button"
