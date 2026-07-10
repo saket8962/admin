@@ -1,20 +1,23 @@
-import { useState, useEffect } from "react";
-
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
   Users,
   ShoppingBag,
   DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
   ChevronRight,
-  Loader2,
   Package,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { API_ENDPOINTS } from "../config/endpoints";
+
+// Sub-components
+import DashboardSkeleton from "../components/skeletons/DashboardSkeleton";
+import StatsCard from "../components/dashboard/StatsCard";
+import StockAlerts from "../components/dashboard/StockAlerts";
+import OrdersTable from "../components/orders/OrdersTable";
 
 interface DashboardStats {
   totalRevenue: number;
@@ -52,35 +55,41 @@ interface LowStockProduct {
   price: number;
 }
 
+interface DashboardApiResponse {
+  stats: DashboardStats;
+  recentOrders: RecentOrder[];
+  topProducts: TopProduct[];
+  lowStockProducts: LowStockProduct[];
+}
+
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>(
-    [],
-  );
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: dashboardData, isLoading, error } = useQuery<DashboardApiResponse>({
+    queryKey: ["dashboardStats"],
+    queryFn: async () => {
+      const response = await api.get(API_ENDPOINTS.DASHBOARD.STATS);
+      return response.data;
+    },
+  });
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.get(API_ENDPOINTS.DASHBOARD.STATS);
-        setStats(response.data.stats);
+    if (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      toast.error("Failed to load dashboard statistics");
+    }
+  }, [error]);
 
-        setRecentOrders(response.data.recentOrders);
-        setTopProducts(response.data.topProducts);
-        setLowStockProducts(response.data.lowStockProducts || []);
-      } catch (error: any) {
-        console.error("Failed to fetch dashboard data:", error);
-        toast.error("Failed to load dashboard statistics");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const stats = dashboardData?.stats || null;
+  const recentOrders = dashboardData?.recentOrders || [];
+  const topProducts = dashboardData?.topProducts || [];
+  const lowStockProducts = dashboardData?.lowStockProducts || [];
 
-    fetchDashboardData();
-  }, []);
+  const normalizedRecentOrders = recentOrders.map((order) => ({
+    id: order._id,
+    orderNumber: `#${order.orderNumber}`,
+    customerName: order.userId?.name || "Guest",
+    status: order.status,
+    amount: `₹ ${order.summary.total.toLocaleString()}`,
+  }));
 
   const statsDisplay = [
     {
@@ -118,14 +127,7 @@ export default function Dashboard() {
   ];
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted p-12 h-[calc(100vh-200px)]">
-        <Loader2 className="w-10 h-10 animate-spin text-accent" />
-        <span className="text-xs font-bold uppercase tracking-widest">
-          Calculating Metrics...
-        </span>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -142,38 +144,7 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsDisplay.map((stat) => (
-          <Link
-            key={stat.label}
-            to={stat.path}
-            className="group bg-white p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm hover:shadow-xl hover:border-accent/20 transition-all duration-300 relative overflow-hidden"
-          >
-            <div className="flex justify-between items-start relative z-10">
-              <div className="p-2 bg-secondary rounded-lg text-primary group-hover:bg-accent group-hover:text-white transition-colors">
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <div
-                className={`flex items-center text-xs font-bold ${stat.isPositive ? "text-green-600" : "text-red-600"}`}
-              >
-                {stat.trend}
-                {stat.isPositive ? (
-                  <ArrowUpRight className="w-3 h-3 ml-0.5" />
-                ) : (
-                  <ArrowDownRight className="w-3 h-3 ml-0.5" />
-                )}
-              </div>
-            </div>
-            <div className="relative z-10">
-              <p className="text-[10px] font-bold text-muted uppercase tracking-widest group-hover:text-accent transition-colors">
-                {stat.label}
-              </p>
-              <h3 className="text-2xl font-bold mt-1">{stat.value}</h3>
-            </div>
-
-            <div className="absolute right-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ChevronRight className="w-4 h-4 text-accent" />
-            </div>
-            <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 blur-2xl rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-accent/10 transition-colors" />
-          </Link>
+          <StatsCard key={stat.label} {...stat} />
         ))}
       </div>
 
@@ -190,59 +161,13 @@ export default function Dashboard() {
               <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-secondary/50 text-[10px] uppercase tracking-widest text-muted font-bold">
-                <tr>
-                  <th className="px-6 py-4">Order ID</th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {recentOrders.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-6 py-12 text-center text-muted text-xs font-bold uppercase tracking-widest"
-                    >
-                      No recent orders
-                    </td>
-                  </tr>
-                ) : (
-                  recentOrders.map((order) => (
-                    <tr
-                      key={order._id}
-                      className="text-sm hover:bg-secondary/20 transition-colors"
-                    >
-                      <td className="px-6 py-4 font-bold text-primary">
-                        #{order.orderNumber}
-                      </td>
-                      <td className="px-6 py-4 font-medium">
-                        {order.userId?.name || "Guest"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            order.status === "Delivered"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-accent">
-                        ₹ {order.summary.total.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <OrdersTable
+            orders={normalizedRecentOrders}
+            showDate={false}
+            showActions={false}
+          />
         </div>
+
         {/* Top Products & Low Stock Alerts */}
         <div className="space-y-8">
           {/* Top Products */}
@@ -296,50 +221,7 @@ export default function Dashboard() {
           </div>
 
           {/* Low Stock Alerts */}
-          {lowStockProducts.length > 0 && (
-            <div className="bg-red-50/50 rounded-2xl border border-red-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <h2 className="font-bold text-red-900">Stock Alerts</h2>
-                </div>
-                <Link
-                  to="/products"
-                  className="text-[10px] font-bold uppercase tracking-widest text-red-600 hover:underline"
-                >
-                  Restock
-                </Link>
-              </div>
-              <div className="space-y-4">
-                {lowStockProducts.map((product) => (
-                  <div
-                    key={product._id}
-                    className="flex items-center gap-3 bg-white p-3 rounded-xl border border-red-50 shadow-sm"
-                  >
-                    <div className="w-10 h-10 bg-secondary rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border border-border">
-                      {product.images?.[0] ? (
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Package className="w-4 h-4 text-muted/30" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-primary truncate">
-                        {product.name}
-                      </p>
-                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-tighter mt-0.5">
-                        {product.stock} Left in Stock
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <StockAlerts products={lowStockProducts} />
         </div>
       </div>
     </div>

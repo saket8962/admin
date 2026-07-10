@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
+import OrdersTable from "../components/orders/OrdersTable";
 
 const orders = [
   {
@@ -52,6 +53,15 @@ const orders = [
 ];
 
 export default function Orders() {
+  const normalizedOrders = orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.id,
+    customerName: order.customer,
+    date: order.date,
+    status: order.status,
+    amount: order.amount,
+  }));
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -139,67 +149,11 @@ export default function Orders() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-secondary/50 text-[10px] uppercase font-bold tracking-widest text-muted">
-              <tr>
-                <th className="px-6 py-4">Order ID</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {orders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="text-sm hover:bg-secondary/20 transition-colors"
-                >
-                  <td className="px-6 py-4 font-bold">{order.id}</td>
-                  <td className="px-6 py-4">
-                    <Link
-                      to={`/users/1`}
-                      className="hover:text-accent transition-colors font-medium"
-                    >
-                      {order.customer}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 text-muted">{order.date}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                        order.status === "Delivered" &&
-                          "bg-green-100 text-green-700",
-                        order.status === "Pending" &&
-                          "bg-yellow-100 text-yellow-700",
-                        order.status === "Shipped" &&
-                          "bg-blue-100 text-blue-700",
-                        order.status === "Cancelled" &&
-                          "bg-red-100 text-red-700",
-                      )}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-accent">
-                    {order.amount}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      to={`/orders/${order.id.replace("#", "")}`}
-                      className="p-2 hover:bg-secondary rounded-lg transition-colors group inline-block"
-                    >
-                      <Eye className="w-4 h-4 text-muted group-hover:text-primary" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <OrdersTable
+          orders={normalizedOrders}
+          showDate={true}
+          showActions={true}
+        />
       </div>
     </div>
   );

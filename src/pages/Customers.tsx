@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Search,
@@ -37,40 +38,48 @@ interface UserStats {
 }
 
 export default function Customers() {
-  const [customers, setCustomers] = useState<User[]>([]);
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [usersRes, statsRes] = await Promise.all([
-        api.get(API_ENDPOINTS.USERS.BASE),
-        api.get(API_ENDPOINTS.USERS.STATS),
-      ]);
-
-      // Filter for customers only if needed, or show all
-      setCustomers(
-        usersRes.data.data.filter((u: any) => u.role === "customer"),
+  // Query 1: Fetch list of users/customers
+  const {
+    data: customers = [],
+    isLoading: isUsersLoading,
+    error: listError,
+  } = useQuery<User[]>({
+    queryKey: ["customersList"],
+    queryFn: async () => {
+      const response = await api.get(API_ENDPOINTS.USERS.BASE);
+      return (response.data.data || []).filter(
+        (u: any) => u.role === "customer"
       );
-      setStats(statsRes.data.data);
-    } catch (error) {
-      console.error("Failed to fetch customer data:", error);
-      toast.error("Failed to load customer directory");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
+
+  // Query 2: Fetch customer stats
+  const {
+    data: stats = null,
+    isLoading: isStatsLoading,
+    error: statsError,
+  } = useQuery<UserStats>({
+    queryKey: ["customersStats"],
+    queryFn: async () => {
+      const response = await api.get(API_ENDPOINTS.USERS.STATS);
+      return response.data.data;
+    },
+  });
+
+  const isLoading = isUsersLoading || isStatsLoading;
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (listError || statsError) {
+      toast.error("Failed to load customer directory");
+    }
+  }, [listError, statsError]);
 
   const filteredCustomers = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      c.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

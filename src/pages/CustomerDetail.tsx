@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -32,28 +33,28 @@ interface UserProfile {
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    data: profile = null,
+    isLoading,
+    error,
+  } = useQuery<UserProfile | null>({
+    queryKey: ["customerDetail", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await api.get(`${API_ENDPOINTS.USERS.BASE}/${id}`);
+      return response.data.data;
+    },
+    enabled: !!id,
+  });
 
   useEffect(() => {
-    const fetchCustomer = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.get(`${API_ENDPOINTS.USERS.BASE}/${id}`);
-        setProfile(response.data.data);
-      } catch (error) {
-        console.error("Failed to fetch customer profile:", error);
-        toast.error("Failed to load customer details");
-        navigate("/customers");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchCustomer();
+    if (error) {
+      console.error("Failed to fetch customer profile:", error);
+      toast.error("Failed to load customer details");
+      navigate("/customers");
     }
-  }, [id, navigate]);
+  }, [error, navigate]);
 
   if (isLoading) {
     return (

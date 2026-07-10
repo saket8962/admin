@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Star,
   Search,
@@ -11,6 +12,7 @@ import {
   TrendingUp,
   ThumbsUp,
   ThumbsDown,
+  Loader2,
 } from "lucide-react";
 
 const reviews = [
@@ -50,6 +52,15 @@ const reviews = [
 
 export default function Reviews() {
   const [selectedTab, setSelectedTab] = useState("All");
+
+  const { data: reviewsList = [], isLoading } = useQuery({
+    queryKey: ["reviewsList"],
+    queryFn: async () => {
+      // Simulate API call latency
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return reviews;
+    },
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -149,89 +160,108 @@ export default function Reviews() {
         </div>
 
         <div className="divide-y divide-border">
-          {reviews.map((review) => (
-            <div
-              key={review.id}
-              className="p-6 hover:bg-secondary/10 transition-all group"
-            >
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-primary">
-                        {review.customer.charAt(0)}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-20 gap-4 text-muted">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                Gathering reviews...
+              </span>
+            </div>
+          ) : reviewsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-20 gap-4 text-muted">
+              <span className="text-sm font-bold uppercase tracking-widest">
+                No reviews found
+              </span>
+            </div>
+          ) : (
+            reviewsList.map((review) => (
+              <div
+                key={review.id}
+                className="p-6 hover:bg-secondary/10 transition-all group"
+              >
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-primary">
+                          {review.customer.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-primary">
+                            {review.customer}
+                          </p>
+                          <p className="text-[11px] text-muted font-medium uppercase tracking-tight">
+                            On {review.product}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-primary">
-                          {review.customer}
-                        </p>
-                        <p className="text-[11px] text-muted font-medium uppercase tracking-tight">
-                          On {review.product}
-                        </p>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${
+                              s <= review.rating
+                                ? "fill-accent text-accent"
+                                : "text-border"
+                            }`}
+                          />
+                        ))}
+                        <span className="text-[10px] text-muted ml-2">
+                          {review.date}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={`w-3.5 h-3.5 ${s <= review.rating ? "fill-accent text-accent" : "text-border"}`}
-                        />
-                      ))}
-                      <span className="text-[10px] text-muted ml-2">
-                        {review.date}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="bg-secondary/20 p-4 rounded-xl relative">
-                    {review.sentiment === "Negative" && (
-                      <div className="absolute top-4 right-4 text-[9px] font-bold text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded border border-red-100 flex items-center gap-1">
-                        <ThumbsDown className="w-3 h-3" /> Sentiment Negative
-                      </div>
-                    )}
-                    {review.sentiment === "Positive" && (
-                      <div className="absolute top-4 right-4 text-[9px] font-bold text-green-500 uppercase tracking-widest bg-green-50 px-2 py-0.5 rounded border border-green-100 flex items-center gap-1">
-                        <ThumbsUp className="w-3 h-3" /> Sentiment Positive
-                      </div>
-                    )}
-                    <p className="text-sm text-primary leading-relaxed pr-24">
-                      "{review.comment}"
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                          review.status === "Pending"
-                            ? "bg-amber-50 border-amber-200 text-amber-600"
-                            : "bg-emerald-50 border-emerald-200 text-emerald-600"
-                        }`}
-                      >
-                        {review.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {review.status === "Pending" && (
-                        <button className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/10">
-                          <CheckCircle2 className="w-3 h-3" /> Approve
-                        </button>
+                    <div className="bg-secondary/20 p-4 rounded-xl relative">
+                      {review.sentiment === "Negative" && (
+                        <div className="absolute top-4 right-4 text-[9px] font-bold text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded border border-red-100 flex items-center gap-1">
+                          <ThumbsDown className="w-3 h-3" /> Sentiment Negative
+                        </div>
                       )}
-                      <button className="flex items-center gap-2 px-4 py-1.5 bg-secondary text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-border transition-all">
-                        <MessageSquare className="w-3 h-3" /> Reply
-                      </button>
-                      <button className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted">
-                        <XCircle className="w-4 h-4 hover:text-red-500 transition-colors" />
-                      </button>
-                      <button className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      {review.sentiment === "Positive" && (
+                        <div className="absolute top-4 right-4 text-[9px] font-bold text-green-500 uppercase tracking-widest bg-green-50 px-2 py-0.5 rounded border border-green-100 flex items-center gap-1">
+                          <ThumbsUp className="w-3 h-3" /> Sentiment Positive
+                        </div>
+                      )}
+                      <p className="text-sm text-primary leading-relaxed pr-24">
+                        "{review.comment}"
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            review.status === "Pending"
+                              ? "bg-amber-50 border-amber-200 text-amber-600"
+                              : "bg-emerald-50 border-emerald-200 text-emerald-600"
+                          }`}
+                        >
+                          {review.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {review.status === "Pending" && (
+                          <button className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/10">
+                            <CheckCircle2 className="w-3 h-3" /> Approve
+                          </button>
+                        )}
+                        <button className="flex items-center gap-2 px-4 py-1.5 bg-secondary text-primary rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-border transition-all">
+                          <MessageSquare className="w-3 h-3" /> Reply
+                        </button>
+                        <button className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted">
+                          <XCircle className="w-4 h-4 hover:text-red-500 transition-colors" />
+                        </button>
+                        <button className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
